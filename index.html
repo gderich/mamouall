@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tibia Guild Deaths - Quinta Serie Ead</title>
+  <style>
+    body { background: #111; color: #eee; font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
+    h1 { color: #f00; text-align: center; }
+    #status { color: #ff9800; text-align: center; }
+    ul { list-style: none; padding: 0; }
+    li { background: #222; margin: 10px 0; padding: 15px; border-radius: 8px; }
+    a { color: #58a6ff; text-decoration: none; font-weight: bold; }
+    a:hover { text-decoration: underline; }
+    iframe { width: 100%; height: 600px; border: none; border-radius: 8px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>☠️ Mortes da Guild - Quinta Serie Ead</h1>
+
+  <p id="status">Carregando membros da guild...</p>
+
+  <ul id="membersList"></ul>
+
+  <p>Deaths completas (últimos dias): <a href="https://guildstats.eu/guild=Quinta+Serie+Ead&op=2" target="_blank">Ver no GuildStats.eu</a></p>
+
+  <iframe src="https://guildstats.eu/guild=Quinta+Serie+Ead&op=2" title="Deaths da guild"></iframe>
+
+  <script>
+    const API = "https://api.tibiadata.com/v4/guild/Quinta%20Serie%20Ead";
+
+    async function loadGuild() {
+      const status = document.getElementById('status');
+      const list = document.getElementById('membersList');
+
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+
+        if (data.error || !data.guild) {
+          status.textContent = 'Guild não encontrada.';
+          return;
+        }
+
+        const members = data.guild.members || [];
+
+        status.textContent = `Guild encontrada! ${members.length} membros.`;
+
+        list.innerHTML = '';
+        members.forEach(m => {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${m.name}</strong> (Lvl ${m.level} - ${m.vocation})`;
+          list.appendChild(li);
+        });
+
+      } catch (e) {
+        status.textContent = 'Erro ao carregar: ' + e.message;
+      }
+    }
+
+    loadGuild();
+  </script>
+</body>
+</html>
