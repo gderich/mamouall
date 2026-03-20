@@ -12,6 +12,9 @@
     #lastUpdate { text-align: center; font-size: 0.95em; color: #888; margin-bottom: 10px; }
     #status { text-align: center; font-weight: bold; margin: 10px 0; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
+    
+    .button-container { text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    
     button.filter-btn {
       padding: 12px 20px;
       background: #58a6ff;
@@ -22,6 +25,9 @@
       margin: 10px 0;
       font-weight: bold;
     }
+    
+    button.test-btn { background: #238636; } /* Cor verde para o botão de teste */
+
     .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
     .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
     .death.new { animation: highlight 6s; background: #3a2a1f; }
@@ -36,14 +42,18 @@
   <div id="lastUpdate">Última atualização: agora</div>
   <input type="text" id="search" placeholder="Buscar por nome ou data" onkeyup="filterDeaths()">
   
-  <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
+  <div class="button-container">
+    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
+    <button class="filter-btn test-btn" onclick="testSound()">🔊 Testar Som de Alerta</button>
+  </div>
 
   <div id="status">Carregando...</div>
   <div id="deathsList"></div>
 
   <script>
-    const deathSound = new Audio('https://www.myinstants.com/pt/instant/comemoracaoooo-36089/?utm_source=copy&utm_medium=share'); 
-// Dica: Use um link de um som de morte do Tibia para ficar temático!
+    // Link direto para o MP3 (ajustado para funcionar no player)
+    const deathSound = new Audio('https://www.myinstants.com/media/sounds/comemoracaoooo.mp3'); 
+    
     const GUILD_NAME = "Quinta Serie Ead";
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
     let allDeaths = [];
@@ -61,6 +71,15 @@
       if (!reason || !reason.includes(" by ")) return false;
       const afterBy = reason.split(" by ")[1].trim();
       return /^[A-Z]/.test(afterBy);
+    }
+
+    // Função para testar o som e garantir permissão do navegador
+    function testSound() {
+        deathSound.play().then(() => {
+            console.log("Som reproduzido com sucesso.");
+        }).catch(e => {
+            alert("Clique na página antes para permitir o som!");
+        });
     }
 
     async function loadDeaths() {
@@ -94,21 +113,23 @@
 
         const currentHash = JSON.stringify(newDeaths.map(d => d.victim + d.date));
 
-        if (currentHash !== lastDeathsHash && lastDeathsHash !== "") {
-    const newOnes = newDeaths.length - allDeaths.length;
-    if (newOnes > 0) {
-        // Toca o som
-        deathSound.play().catch(e => console.log("Áudio bloqueado pelo navegador até interação do usuário."));
+        if (lastDeathsHash !== "" && currentHash !== lastDeathsHash) {
+          const newOnes = newDeaths.length - allDeaths.length;
+          
+          if (newOnes > 0) {
+            // Toca o som de alerta
+            deathSound.play().catch(e => console.log("Áudio bloqueado até interação."));
 
-        // Notificação Visual
-        if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("Nova Morte na Guild!", {
-                body: `${newOnes} nova(s) morte(s) detectada(s)!`,
-                icon: "https://tibia.com/favicon.ico"
-            });
+            // Notificação Visual do Sistema
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("Nova Morte na Guild!", {
+                    body: `${newOnes} nova(s) morte(s) detectada(s)!`,
+                    icon: "https://tibia.com/favicon.ico"
+                });
+            }
+          }
         }
-    }
-}
+
         allDeaths = newDeaths;
         lastDeathsHash = currentHash;
         lastUpdateTime = Date.now();
@@ -117,14 +138,13 @@
         document.getElementById('status').textContent = `✅ ${allDeaths.length} mortes carregadas`;
 
       } catch (e) {
-        document.getElementById('status').textContent = 'Erro temporário...';
+        document.getElementById('status').textContent = 'Erro temporário na API...';
       }
     }
 
     function renderDeaths(deaths) {
       const container = document.getElementById('deathsList');
       container.innerHTML = '';
-
       const filtered = showOnlyPlayerKills ? deaths.filter(d => d.isPlayer) : deaths;
 
       if (filtered.length === 0) {
@@ -174,19 +194,18 @@
       document.getElementById('lastUpdate').textContent = `Última atualização: há ${seconds} segundos`;
     }
 
-    // Atualização ultra-rápida (10 segundos)
-    setInterval(loadDeaths, 10000);
-
-    // Contador ao vivo (atualiza a cada segundo)
+    // Intervalos
+    setInterval(loadDeaths, 60000); // Alterado para 60s para evitar bloqueio de IP (Rate Limit)
     setInterval(updateCounter, 1000);
 
-    // Primeira carga
+    // Inicialização
     loadDeaths();
+
     window.addEventListener('load', () => {
-    if ("Notification" in window) {
-        Notification.requestPermission();
-    }
-});
+      if ("Notification" in window && Notification.permission !== "granted") {
+          Notification.requestPermission();
+      }
+    });
   </script>
 </body>
 </html>
