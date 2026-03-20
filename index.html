@@ -25,47 +25,31 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
-      transition: 0.2s;
     }
-    button.filter-btn:hover { background: #30363d; border-color: #8b949e; }
     button.test-btn { color: #3fb950; border-color: #238636; }
 
-    /* Estilo do Contador de Mortes por Dia */
-    .day-header { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      border-bottom: 1px solid #30363d;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
-    }
-    .frag-count { 
-      background: #da3633; 
-      color: white; 
-      padding: 2px 10px; 
-      border-radius: 20px; 
-      font-size: 0.9em;
-      font-weight: bold;
-    }
-
     .day { background: #161b22; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px solid #30363d; }
-    .death { background: #0d1117; padding: 10px; margin: 6px 0; border-radius: 6px; border-left: 3px solid #f85149; font-size: 0.95em; }
+    .day-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; padding-bottom: 8px; margin-bottom: 10px; }
+    .frag-count { background: #da3633; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.9em; font-weight: bold; }
+
+    .death { background: #0d1117; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid #f85149; }
+    .death-time { color: #8b949e; font-size: 0.85em; font-weight: bold; margin-right: 8px; font-family: monospace; }
     .victim { color: #ff7b72; font-weight: bold; }
-    .killer { color: #8b949e; font-style: italic; }
+    .killer { color: #c9d1d9; font-size: 0.9em; display: block; margin-top: 4px; border-top: 1px solid #ffffff10; padding-top: 4px; }
   </style>
 </head>
 <body>
   <h1>☠️ Quinta Serie Ead <span class="live">● LIVE</span></h1>
-  <div id="lastUpdate">Última atualização: agora</div>
+  <div id="lastUpdate">Sincronizando...</div>
 
-  <input type="text" id="search" placeholder="Filtrar por nome ou data (ex: 15/05)..." onkeyup="filterDeaths()">
+  <input type="text" id="search" placeholder="Filtrar por nome, data ou hora..." onkeyup="filterDeaths()">
   
   <div class="button-container">
-    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes p/ Players</button>
+    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Apenas Mortes p/ Players</button>
     <button class="filter-btn test-btn" onclick="testSound()">🔊 Testar Som</button>
   </div>
 
-  <div id="status">Iniciando monitoramento...</div>
+  <div id="status">Iniciando...</div>
   <div id="deathsList"></div>
 
   <script>
@@ -78,8 +62,13 @@
     let lastUpdateTime = Date.now();
     let lastDeathsHash = "";
 
+    function formatTime(isoString) {
+      // Extrai HH:MM do formato 2024-03-20T14:30:00Z
+      const timePart = isoString.split('T')[1];
+      return timePart.substring(0, 5);
+    }
+
     function formatDate(dateStr) {
-      if (!dateStr) return "??/??/????";
       const [year, month, day] = dateStr.split('-');
       return `${day}/${month}/${year}`;
     }
@@ -91,7 +80,7 @@
     }
 
     function testSound() {
-        deathSound.play().catch(e => alert("Clique na página antes para permitir o som!"));
+        deathSound.play().catch(e => alert("Interaja com a página primeiro!"));
     }
 
     async function loadDeaths() {
@@ -100,7 +89,7 @@
         const guildData = await guildRes.json();
         const members = guildData.guild.members || [];
 
-        let newDeaths = [];
+        let fetchedDeaths = [];
 
         for (const member of members) {
           const charRes = await fetch(`https://api.tibiadata.com/v4/character/${encodeURIComponent(member.name)}`);
@@ -108,40 +97,39 @@
 
           if (charData.character && charData.character.deaths) {
             charData.character.deaths.forEach(death => {
-              const reason = death.reason || '';
-              newDeaths.push({
+              fetchedDeaths.push({
+                fullTime: death.time, // Usado para ordenação (ISO String)
                 date: death.time.split('T')[0],
-                formattedDate: formatDate(death.time.split('T')[0]),
+                time: formatTime(death.time),
                 victim: member.name,
                 level: death.level,
-                reason: reason,
-                isPlayer: isPlayerKill(reason)
+                reason: death.reason || '',
+                isPlayer: isPlayerKill(death.reason || '')
               });
             });
           }
         }
 
-        newDeaths.sort((a, b) => b.date.localeCompare(a.date));
-        const currentHash = JSON.stringify(newDeaths.map(d => d.victim + d.date));
+        // Ordenação por tempo real (mais recentes primeiro)
+        fetchedDeaths.sort((a, b) => b.fullTime.localeCompare(a.fullTime));
+
+        const currentHash = JSON.stringify(fetchedDeaths.map(d => d.victim + d.fullTime));
 
         if (lastDeathsHash !== "" && currentHash !== lastDeathsHash) {
-          const newOnes = newDeaths.length - allDeaths.length;
+          const newOnes = fetchedDeaths.length - allDeaths.length;
           if (newOnes > 0) {
-            deathSound.play().catch(e => console.log("Som bloqueado"));
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("🚨 Nova Morte!", { body: `${newOnes} morte(s) detectada(s)!`, icon: "https://tibia.com/favicon.ico" });
-            }
+            deathSound.play().catch(e => console.log("Áudio pendente"));
           }
         }
 
-        allDeaths = newDeaths;
+        allDeaths = fetchedDeaths;
         lastDeathsHash = currentHash;
         lastUpdateTime = Date.now();
         renderDeaths(allDeaths);
-        document.getElementById('status').textContent = `✅ ${allDeaths.length} registros processados`;
+        document.getElementById('status').textContent = `✅ Monitorando ${members.length} membros`;
 
       } catch (e) {
-        document.getElementById('status').textContent = 'Erro de conexão...';
+        document.getElementById('status').textContent = 'Erro de sincronização...';
       }
     }
 
@@ -152,33 +140,32 @@
       const filtered = showOnlyPlayerKills ? deaths.filter(d => d.isPlayer) : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#8b949e;">Nenhuma morte registrada.</p>';
+        container.innerHTML = '<p style="text-align:center;">Nenhuma morte encontrada.</p>';
         return;
       }
 
+      // Agrupa por data, mantendo a ordem de tempo dentro do grupo
       const grouped = {};
       filtered.forEach(d => {
         if (!grouped[d.date]) grouped[d.date] = [];
         grouped[d.date].push(d);
       });
 
-      Object.keys(grouped).sort().reverse().forEach(rawDate => {
-        const formatted = formatDate(rawDate);
-        const dailyDeaths = grouped[rawDate];
-        
-        // Criar seção do dia com o Contador de Frags
+      Object.keys(grouped).sort().reverse().forEach(dateKey => {
+        const dailyDeaths = grouped[dateKey];
         let html = `
           <div class="day">
             <div class="day-header">
-              <h3>${formatted}</h3>
-              <span class="frag-count">${dailyDeaths.length} MORTES</span>
+              <h3>${formatDate(dateKey)}</h3>
+              <span class="frag-count">${dailyDeaths.length} FRAGS</span>
             </div>`;
         
         dailyDeaths.forEach(d => {
           html += `
             <div class="death">
-              <span class="victim">${d.victim}</span> (Lvl ${d.level}) 
-              <br><span class="killer">${d.reason}</span>
+              <span class="death-time">${d.time}</span>
+              <span class="victim">${d.victim}</span> (Lvl ${d.level})
+              <span class="killer">${d.reason}</span>
             </div>`;
         });
         html += `</div>`;
@@ -189,7 +176,9 @@
     function filterDeaths() {
       const term = document.getElementById('search').value.toLowerCase();
       const filtered = allDeaths.filter(d => 
-        d.victim.toLowerCase().includes(term) || d.formattedDate.includes(term)
+        d.victim.toLowerCase().includes(term) || 
+        d.date.includes(term) ||
+        d.time.includes(term)
       );
       renderDeaths(filtered);
     }
@@ -197,8 +186,8 @@
     function toggleFilter() {
       showOnlyPlayerKills = !showOnlyPlayerKills;
       document.getElementById('filterBtn').textContent = showOnlyPlayerKills 
-        ? "Mostrar apenas mortes p/ Players" 
-        : "Mostrar todas as mortes";
+        ? "Apenas Mortes p/ Players" 
+        : "Mostrar Todas";
       renderDeaths(allDeaths);
     }
 
@@ -210,7 +199,6 @@
     setInterval(loadDeaths, 60000); 
     setInterval(updateCounter, 1000);
     loadDeaths();
-
     if ("Notification" in window) { Notification.requestPermission(); }
   </script>
 </body>
