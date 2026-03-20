@@ -5,26 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tibia Guild Deaths - Quinta Serie Ead</title>
   <style>
-    body { background: #111; color: #eee; font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
-    h1 { color: #f00; text-align: center; }
-    #status { color: #ff9800; text-align: center; }
-    ul { list-style: none; padding: 0; }
-    li { background: #222; margin: 10px 0; padding: 15px; border-radius: 8px; }
-    a { color: #58a6ff; text-decoration: none; font-weight: bold; }
-    a:hover { text-decoration: underline; }
-    iframe { width: 100%; height: 600px; border: none; border-radius: 8px; margin-top: 20px; }
+    :root {
+      --bg: #0d1117;
+      --text: #c9d1d9;
+      --accent: #58a6ff;
+      --red: #f85149;
+      --gray: #30363d;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 { text-align: center; color: var(--red); margin-bottom: 10px; }
+    #status {
+      text-align: center;
+      font-weight: bold;
+      margin: 15px 0;
+      min-height: 24px;
+    }
+    #status.error { color: #f85149; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      background: var(--gray);
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+    }
+    .big-link {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      background: #f85149;
+      color: white;
+      text-align: center;
+      font-size: 1.3em;
+      font-weight: bold;
+      border-radius: 8px;
+      margin: 20px 0;
+      text-decoration: none;
+    }
+    .big-link:hover {
+      background: #e63939;
+      transform: scale(1.03);
+    }
   </style>
 </head>
 <body>
   <h1>☠️ Mortes da Guild - Quinta Serie Ead</h1>
 
-  <p id="status">Carregando membros da guild...</p>
+  <div id="status">Carregando membros da guild...</div>
 
   <ul id="membersList"></ul>
 
-  <p>Deaths completas (últimos dias): <a href="https://guildstats.eu/guild=Quinta+Serie+Ead&op=2" target="_blank">Ver no GuildStats.eu</a></p>
+  <!-- Link grande e direto para o GuildStats (melhor fonte de mortes) -->
+  <a href="https://guildstats.eu/guild=Quinta+Serie+Ead&op=2" target="_blank" class="big-link">
+    📊 VER TODAS AS MORTES DA GUILD (com data e quem matou)
+  </a>
 
-  <iframe src="https://guildstats.eu/guild=Quinta+Serie+Ead&op=2" title="Deaths da guild"></iframe>
+  <p style="text-align:center; color:#888; font-size:0.9em;">
+    GuildStats.eu é a fonte mais completa e atualizada de mortes.<br>
+    O link acima mostra todas as mortes recentes da guild com data, vítima e killer.
+  </p>
 
   <script>
     const API = "https://api.tibiadata.com/v4/guild/Quinta%20Serie%20Ead";
@@ -43,7 +89,6 @@
         }
 
         const members = data.guild.members || [];
-
         status.textContent = `Guild encontrada! ${members.length} membros.`;
 
         list.innerHTML = '';
@@ -54,6 +99,7 @@
         });
 
       } catch (e) {
+        status.classList.add('error');
         status.textContent = 'Erro ao carregar: ' + e.message;
       }
     }
