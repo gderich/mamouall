@@ -32,7 +32,7 @@
   <input type="text" id="search" placeholder="Buscar por nome ou data (ex: 15/03/2026)" onkeyup="filterDeaths()">
   
   <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
-  <div id="mode" class="mode">Modo atual: Apenas mortes por players (nome com letra maiúscula)</div>
+  <div id="mode" class="mode">Modo atual: Apenas mortes por players (nome após " by ")</div>
 
   <div id="status">Carregando mortes...</div>
   <div id="deathsList"></div>
@@ -49,12 +49,13 @@
       return `${day}/${month}/${year}`;
     }
 
-    // REGRA SIMPLES QUE VOCÊ PEDIU:
-    // Só considera player se o nome do killer começar com letra MAIÚSCULA
+    // REGRA EXATA QUE VOCÊ PEDIU:
+    // Procura " by " (espaço by espaço) e verifica se o nome depois começa com maiúscula
     function isPlayerKill(reason) {
-      if (!reason || !reason.includes("killed by ")) return false;
-      const killerName = reason.split("killed by ")[1].trim();
-      return /^[A-Z]/.test(killerName);   // ← Primeira letra maiúscula = player
+      if (!reason || !reason.includes(" by ")) return false;
+      
+      const afterBy = reason.split(" by ")[1].trim();
+      return /^[A-Z]/.test(afterBy);   // Primeira letra maiúscula = player
     }
 
     async function loadDeaths() {
@@ -152,16 +153,13 @@
         : "Mostrar todas as mortes";
       
       modeText.textContent = showOnlyPlayerKills 
-        ? "Modo atual: Apenas mortes por players (nome com letra maiúscula)" 
+        ? "Modo atual: Apenas mortes por players (nome após ' by ')" 
         : "Modo atual: Todas as mortes";
       
       renderDeaths(allDeaths);
     }
 
-    // Primeira carga
     loadDeaths();
-
-    // Atualiza a cada 5 minutos
     setInterval(loadDeaths, 300000);
   </script>
 </body>
