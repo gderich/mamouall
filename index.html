@@ -10,18 +10,20 @@
     #status { text-align: center; font-weight: bold; margin: 20px 0; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
     button.filter-btn {
-      padding: 10px 20px;
+      padding: 12px 20px;
       background: #58a6ff;
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       margin: 10px 0;
+      font-weight: bold;
     }
     .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
     .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
     .victim { color: #ff7b72; font-weight: bold; }
     .killer { color: #8b949e; }
+    .mode { font-size: 0.9em; color: #58a6ff; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -30,6 +32,7 @@
   <input type="text" id="search" placeholder="Buscar por nome ou data (ex: 15/03/2026)" onkeyup="filterDeaths()">
   
   <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
+  <div id="mode" class="mode">Modo atual: Apenas mortes por players</div>
 
   <div id="status">Carregando mortes...</div>
   <div id="deathsList"></div>
@@ -38,7 +41,7 @@
     const GUILD_NAME = "Quinta Serie Ead";
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
     let allDeaths = [];
-    let showOnlyPlayerKills = true; // padrão: só mortes por players
+    let showOnlyPlayerKills = true;
 
     function formatDate(dateStr) {
       if (!dateStr) return "??/??/????";
@@ -47,9 +50,15 @@
     }
 
     function isPlayerKill(reason) {
-      if (!reason) return false;
-      const killer = reason.replace("killed by ", "").trim();
-      return /^[A-Z]/.test(killer); // começa com letra maiúscula = provavelmente player
+      if (!reason || !reason.includes("killed by ")) return false;
+      const killer = reason.split("killed by ")[1].trim().toLowerCase();
+      // Ignora monstros (começa com "a ", "an ", "an elder ", etc.)
+      return !killer.startsWith("a ") && 
+             !killer.startsWith("an ") && 
+             !killer.includes("dragon") && 
+             !killer.includes("demon") && 
+             !killer.includes("monster") &&
+             /^[a-z]/.test(killer[0]) === false; // começa com maiúscula = player
     }
 
     async function loadDeaths() {
@@ -101,7 +110,7 @@
         : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p>Nenhuma morte encontrada com os filtros atuais.</p>';
+        container.innerHTML = '<p>Nenhuma morte encontrada com o filtro atual.</p>';
         return;
       }
 
@@ -140,9 +149,16 @@
     function toggleFilter() {
       showOnlyPlayerKills = !showOnlyPlayerKills;
       const btn = document.getElementById('filterBtn');
+      const modeText = document.getElementById('mode');
+      
       btn.textContent = showOnlyPlayerKills 
         ? "Mostrar apenas mortes por players" 
         : "Mostrar todas as mortes (incluindo monstros)";
+      
+      modeText.textContent = showOnlyPlayerKills 
+        ? "Modo atual: Apenas mortes por players" 
+        : "Modo atual: Todas as mortes (players + criaturas)";
+      
       renderDeaths(allDeaths);
     }
 
