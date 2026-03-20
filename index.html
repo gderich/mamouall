@@ -173,15 +173,21 @@
       });
     }
 
-    function filterDeaths() {
-      const term = document.getElementById('search').value.toLowerCase();
-      const filtered = allDeaths.filter(d => 
-        d.victim.toLowerCase().includes(term) || 
-        d.date.includes(term) ||
-        d.time.includes(term)
-      );
-      renderDeaths(filtered);
-    }
+ function filterDeaths() {
+  const term = document.getElementById('search').value.toLowerCase();
+  
+  const filtered = allDeaths.filter(d => {
+    const nameMatch = d.victim.toLowerCase().includes(term);
+    const dateMatch = d.formattedDate.includes(term); // Busca pela data formatada (ex: 20/03)
+    const timeMatch = d.time.includes(term);          // Busca pelo horário (ex: 14:30)
+
+    // Retorna verdadeiro se o termo bater com o NOME, DATA ou HORA
+    // Mas IGNORA o que estiver dentro de d.reason (a descrição/killer)
+    return nameMatch || dateMatch || timeMatch;
+  });
+
+  renderDeaths(filtered);
+}
 
     function toggleFilter() {
       showOnlyPlayerKills = !showOnlyPlayerKills;
