@@ -5,85 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mortes - Quinta Serie Ead</title>
   <style>
-    body {
-      background: #0d1117;
-      color: #c9d1d9;
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
+    body { background: #0d1117; color: #c9d1d9; font-family: Arial; margin: 0; padding: 20px; max-width: 900px; margin: auto; }
     h1 { text-align: center; color: #f85149; }
-    #status { text-align: center; font-weight: bold; margin: 20px 0; }
-    ul { list-style: none; padding: 0; }
-    li {
-      background: #21262d;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .info { flex: 1; }
-    .btn {
-      background: #f85149;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .btn:hover { background: #e63939; }
+    input, select, button { padding: 10px; margin: 5px; font-size: 16px; }
+    #status { text-align: center; font-weight: bold; margin: 15px 0; }
+    .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
+    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
+    .victim { color: #ff7b72; font-weight: bold; }
+    .killer { color: #8b949e; }
   </style>
 </head>
 <body>
   <h1>☠️ Mortes da Guild - Quinta Serie Ead</h1>
-  <div id="status">Carregando membros...</div>
-  <ul id="list"></ul>
+  <div id="status">Carregando mortes...</div>
+  <input type="text" id="search" placeholder="Buscar por nome ou data..." onkeyup="filterDeaths()">
+  <div id="deathsList"></div>
 
   <script>
-    const API_URL = "https://api.tibiadata.com/v4/guild/Quinta%20Serie%20Ead";
+    const GUILD_NAME = "Quinta Serie Ead";
+    const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
+    let allDeaths = [];
 
-    async function carregar() {
+    async function loadDeaths() {
       const status = document.getElementById('status');
-      const list = document.getElementById('list');
-      list.innerHTML = '';
+      status.textContent = 'Buscando membros e mortes...';
 
       try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
+        // 1. Pega os membros da guild
+        const guildRes = await fetch(GUILD_API);
+        const guildData = await guildRes.json();
+        const members = guildData.guild.members || [];
 
-        if (data.error || !data.guild) {
-          status.textContent = "❌ Guild não encontrada";
-          return;
+        allDeaths = [];
+
+        // 2. Para cada membro, pega as mortes
+        for (const member of members) {
+          const charRes = await fetch(`https://api.tibiadata.com/v4/character/${encodeURIComponent(member.name)}`);
+          const charData = await charRes.json();
+
+          if (charData.character && charData.character.deaths) {
+            charData.character.deaths.forEach(death => {
+              allDeaths.push({
+                date: death.time.split('T')[0],
+                victim: member.name,
+                level: death.level,
+                reason: death.reason || 'Desconhecido'
+              });
+            });
+          }
         }
 
-        const members = data.guild.members || [];
-        status.textContent = `✅ ${members.length} membros carregados`;
+        // Ordena por data (mais recente primeiro)
+        allDeaths.sort((a, b) => b.date.localeCompare(a.date));
 
-        members.forEach(m => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <div class="info">
-              <strong>${m.name}</strong><br>
-              Level ${m.level} • ${m.vocation}
-            </div>
-            <a href="https://www.tibia.com/community/?subtopic=characters&name=${encodeURIComponent(m.name)}" 
-               target="_blank" class="btn">Ver Mortes</a>
-          `;
-          list.appendChild(li);
-        });
+        renderDeaths(allDeaths);
+        status.textContent = `✅ ${allDeaths.length} mortes encontradas`;
 
       } catch (e) {
-        status.textContent = "Erro ao carregar guild";
+        status.textContent = 'Erro ao carregar mortes: ' + e.message;
+        console.error(e);
       }
     }
 
-    carregar();
-    setInterval(carregar, 300000); // atualiza a cada 5 minutos
+    function renderDeaths(deaths) {
+      const container = document.getElementById('deathsList');
+      container.innerHTML = '';
+
+      if (deaths.length === 0) {
+        container.innerHTML = '<p>Nenhuma morte encontrada nos últimos dias.</p>';
+        return;
+      }
+
+      // Agrupa por dia
+      const grouped = {};
+      deaths.forEach(d => {
+        if (!grouped[d.date]) grouped[d.date] = [];
+        grouped[d.date].push(d);
+      });
+
+      Object.keys(grouped).sort().reverse().forEach(date => {
+        let html = `<div class="day"><h3>${date}</h3>`;
+        grouped[date].forEach(d => {
+          html += `
+            <div class="death">
+              <span class="victim">${d.victim}</span> (Lvl ${d.level}) 
+              foi morto por: <span class="killer">${d.reason}</span>
+            </div>`;
+        });
+        html += `</div>`;
+        container.innerHTML += html;
+      });
+    }
+
+    function filterDeaths() {
+      const term = document.getElementById('search').value.toLowerCase();
+      const filtered = allDeaths.filter(d => 
+        d.victim.toLowerCase().includes(term) || 
+        d.date.includes(term) ||
+        d.reason.toLowerCase().includes(term)
+      );
+      renderDeaths(filtered);
+    }
+
+    // Primeira carga
+    loadDeaths();
+
+    // Atualiza a cada 5 minutos
+    setInterval(loadDeaths, 300000);
   </script>
 </body>
 </html>
