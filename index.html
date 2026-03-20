@@ -5,57 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mortes - Quinta Serie Ead (LIVE)</title>
   <style>
-    body { background: #0d1117; color: #c9d1d9; font-family: Arial; margin: 0; padding: 20px; max-width: 900px; margin: auto; }
-    h1 { text-align: center; color: #f85149; }
-    .live { color: #00ff00; animation: pulse 2s infinite; }
+    body { background: #0d1117; color: #c9d1d9; font-family: Arial, sans-serif; margin: 0; padding: 20px; max-width: 900px; margin: auto; }
+    h1 { text-align: center; color: #f85149; margin-bottom: 5px; }
+    .live { color: #00ff00; animation: pulse 2s infinite; font-size: 0.6em; vertical-align: middle; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } }
-    #lastUpdate { text-align: center; font-size: 0.95em; color: #888; margin-bottom: 10px; }
-    #status { text-align: center; font-weight: bold; margin: 10px 0; }
-    input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
     
-    .button-container { text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    #lastUpdate { text-align: center; font-size: 0.85em; color: #8b949e; margin-bottom: 15px; }
+    #status { text-align: center; font-weight: bold; margin: 10px 0; color: #58a6ff; }
+    
+    input { width: 100%; padding: 12px; margin: 10px 0; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: white; box-sizing: border-box; }
+    
+    .button-container { text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
     
     button.filter-btn {
-      padding: 12px 20px;
-      background: #58a6ff;
-      color: white;
-      border: none;
+      padding: 10px 15px;
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #f0f6fc1a;
       border-radius: 6px;
       cursor: pointer;
-      margin: 10px 0;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    button.filter-btn:hover { background: #30363d; border-color: #8b949e; }
+    button.test-btn { color: #3fb950; border-color: #238636; }
+
+    /* Estilo do Contador de Mortes por Dia */
+    .day-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .frag-count { 
+      background: #da3633; 
+      color: white; 
+      padding: 2px 10px; 
+      border-radius: 20px; 
+      font-size: 0.9em;
       font-weight: bold;
     }
-    
-    button.test-btn { background: #238636; } /* Cor verde para o botão de teste */
 
-    .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
-    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
-    .death.new { animation: highlight 6s; background: #3a2a1f; }
-    @keyframes highlight { 0% { background: #3a2a1f; } 100% { background: #21262d; } }
+    .day { background: #161b22; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px solid #30363d; }
+    .death { background: #0d1117; padding: 10px; margin: 6px 0; border-radius: 6px; border-left: 3px solid #f85149; font-size: 0.95em; }
     .victim { color: #ff7b72; font-weight: bold; }
-    .killer { color: #8b949e; }
+    .killer { color: #8b949e; font-style: italic; }
   </style>
 </head>
 <body>
-  <h1>☠️ Mortes da Guild - Quinta Serie Ead <span class="live">● LIVE</span></h1>
-  
+  <h1>☠️ Quinta Serie Ead <span class="live">● LIVE</span></h1>
   <div id="lastUpdate">Última atualização: agora</div>
-  <input type="text" id="search" placeholder="Buscar por nome ou data" onkeyup="filterDeaths()">
+
+  <input type="text" id="search" placeholder="Filtrar por nome ou data (ex: 15/05)..." onkeyup="filterDeaths()">
   
   <div class="button-container">
-    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
-    <button class="filter-btn test-btn" onclick="testSound()">🔊 Testar Som de Alerta</button>
+    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes p/ Players</button>
+    <button class="filter-btn test-btn" onclick="testSound()">🔊 Testar Som</button>
   </div>
 
-  <div id="status">Carregando...</div>
+  <div id="status">Iniciando monitoramento...</div>
   <div id="deathsList"></div>
 
   <script>
-    // Link direto para o MP3 (ajustado para funcionar no player)
     const deathSound = new Audio('https://www.myinstants.com/media/sounds/comemoracaoooo.mp3'); 
-    
     const GUILD_NAME = "Quinta Serie Ead";
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
+    
     let allDeaths = [];
     let showOnlyPlayerKills = true;
     let lastUpdateTime = Date.now();
@@ -73,13 +90,8 @@
       return /^[A-Z]/.test(afterBy);
     }
 
-    // Função para testar o som e garantir permissão do navegador
     function testSound() {
-        deathSound.play().then(() => {
-            console.log("Som reproduzido com sucesso.");
-        }).catch(e => {
-            alert("Clique na página antes para permitir o som!");
-        });
+        deathSound.play().catch(e => alert("Clique na página antes para permitir o som!"));
     }
 
     async function loadDeaths() {
@@ -110,22 +122,14 @@
         }
 
         newDeaths.sort((a, b) => b.date.localeCompare(a.date));
-
         const currentHash = JSON.stringify(newDeaths.map(d => d.victim + d.date));
 
         if (lastDeathsHash !== "" && currentHash !== lastDeathsHash) {
           const newOnes = newDeaths.length - allDeaths.length;
-          
           if (newOnes > 0) {
-            // Toca o som de alerta
-            deathSound.play().catch(e => console.log("Áudio bloqueado até interação."));
-
-            // Notificação Visual do Sistema
+            deathSound.play().catch(e => console.log("Som bloqueado"));
             if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("Nova Morte na Guild!", {
-                    body: `${newOnes} nova(s) morte(s) detectada(s)!`,
-                    icon: "https://tibia.com/favicon.ico"
-                });
+                new Notification("🚨 Nova Morte!", { body: `${newOnes} morte(s) detectada(s)!`, icon: "https://tibia.com/favicon.ico" });
             }
           }
         }
@@ -133,22 +137,22 @@
         allDeaths = newDeaths;
         lastDeathsHash = currentHash;
         lastUpdateTime = Date.now();
-
         renderDeaths(allDeaths);
-        document.getElementById('status').textContent = `✅ ${allDeaths.length} mortes carregadas`;
+        document.getElementById('status').textContent = `✅ ${allDeaths.length} registros processados`;
 
       } catch (e) {
-        document.getElementById('status').textContent = 'Erro temporário na API...';
+        document.getElementById('status').textContent = 'Erro de conexão...';
       }
     }
 
     function renderDeaths(deaths) {
       const container = document.getElementById('deathsList');
       container.innerHTML = '';
+      
       const filtered = showOnlyPlayerKills ? deaths.filter(d => d.isPlayer) : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p>Nenhuma morte encontrada.</p>';
+        container.innerHTML = '<p style="text-align:center; color:#8b949e;">Nenhuma morte registrada.</p>';
         return;
       }
 
@@ -160,12 +164,21 @@
 
       Object.keys(grouped).sort().reverse().forEach(rawDate => {
         const formatted = formatDate(rawDate);
-        let html = `<div class="day"><h3>${formatted}</h3>`;
-        grouped[rawDate].forEach(d => {
+        const dailyDeaths = grouped[rawDate];
+        
+        // Criar seção do dia com o Contador de Frags
+        let html = `
+          <div class="day">
+            <div class="day-header">
+              <h3>${formatted}</h3>
+              <span class="frag-count">${dailyDeaths.length} MORTES</span>
+            </div>`;
+        
+        dailyDeaths.forEach(d => {
           html += `
             <div class="death">
               <span class="victim">${d.victim}</span> (Lvl ${d.level}) 
-              foi morto por: <span class="killer">${d.reason}</span>
+              <br><span class="killer">${d.reason}</span>
             </div>`;
         });
         html += `</div>`;
@@ -184,28 +197,21 @@
     function toggleFilter() {
       showOnlyPlayerKills = !showOnlyPlayerKills;
       document.getElementById('filterBtn').textContent = showOnlyPlayerKills 
-        ? "Mostrar apenas mortes por players" 
+        ? "Mostrar apenas mortes p/ Players" 
         : "Mostrar todas as mortes";
       renderDeaths(allDeaths);
     }
 
     function updateCounter() {
       const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
-      document.getElementById('lastUpdate').textContent = `Última atualização: há ${seconds} segundos`;
+      document.getElementById('lastUpdate').textContent = `Sincronizado há ${seconds}s`;
     }
 
-    // Intervalos
-    setInterval(loadDeaths, 60000); // Alterado para 60s para evitar bloqueio de IP (Rate Limit)
+    setInterval(loadDeaths, 60000); 
     setInterval(updateCounter, 1000);
-
-    // Inicialização
     loadDeaths();
 
-    window.addEventListener('load', () => {
-      if ("Notification" in window && Notification.permission !== "granted") {
-          Notification.requestPermission();
-      }
-    });
+    if ("Notification" in window) { Notification.requestPermission(); }
   </script>
 </body>
 </html>
