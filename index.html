@@ -32,7 +32,7 @@
   <input type="text" id="search" placeholder="Buscar por nome ou data (ex: 15/03/2026)" onkeyup="filterDeaths()">
   
   <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
-  <div id="mode" class="mode">Modo atual: Apenas mortes por players</div>
+  <div id="mode" class="mode">Modo atual: Apenas mortes por players (nome com letra maiúscula)</div>
 
   <div id="status">Carregando mortes...</div>
   <div id="deathsList"></div>
@@ -43,34 +43,18 @@
     let allDeaths = [];
     let showOnlyPlayerKills = true;
 
-    // Lista grande de criaturas e bosses (baseada no TibiaWiki)
-    const monsterList = [
-      "dragon", "demon", "behemoth", "hydra", "lich", "minotaur", "orc", "troll", "rat", "spider", 
-      "skeleton", "cyclops", "giant", "vampire", "ghost", "zombie", "boss", "elder dragon", "wyrm", 
-      "ancient scarab", "beast", "wolf", "snake", "crab", "frog", "bear", "lion", "scorpion", 
-      "gargoyle", "golem", "imp", "spectre", "wraith", "undead", "elemental", "slime", "blob"
-    ];
-
     function formatDate(dateStr) {
       if (!dateStr) return "??/??/????";
       const [year, month, day] = dateStr.split('-');
       return `${day}/${month}/${year}`;
     }
 
+    // REGRA SIMPLES QUE VOCÊ PEDIU:
+    // Só considera player se o nome do killer começar com letra MAIÚSCULA
     function isPlayerKill(reason) {
       if (!reason || !reason.includes("killed by ")) return false;
-      
-      let killer = reason.split("killed by ")[1].trim().toLowerCase();
-      
-      // Remove artigos e palavras comuns
-      killer = killer.replace(/^a |^an |^the /, '');
-      
-      // Se for monstro da lista → não é player
-      if (monsterList.some(m => killer.includes(m))) return false;
-      
-      // Se começa com letra maiúscula e tem nome longo → quase sempre é player
-      const cleanKiller = reason.split("killed by ")[1].trim();
-      return /^[A-Z]/.test(cleanKiller) && cleanKiller.length > 5;
+      const killerName = reason.split("killed by ")[1].trim();
+      return /^[A-Z]/.test(killerName);   // ← Primeira letra maiúscula = player
     }
 
     async function loadDeaths() {
@@ -122,9 +106,7 @@
         : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = showOnlyPlayerKills 
-          ? '<p>Nenhuma morte por player encontrada neste período.</p>' 
-          : '<p>Nenhuma morte encontrada.</p>';
+        container.innerHTML = '<p>Nenhuma morte encontrada com o filtro atual.</p>';
         return;
       }
 
@@ -170,7 +152,7 @@
         : "Mostrar todas as mortes";
       
       modeText.textContent = showOnlyPlayerKills 
-        ? "Modo atual: Apenas mortes por players" 
+        ? "Modo atual: Apenas mortes por players (nome com letra maiúscula)" 
         : "Modo atual: Todas as mortes";
       
       renderDeaths(allDeaths);
