@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mortes - Quinta Serie Ead</title>
+  <title>Mortes - Quinta Serie Ead (Live)</title>
   <style>
     body { background: #0d1117; color: #c9d1d9; font-family: Arial; margin: 0; padding: 20px; max-width: 900px; margin: auto; }
     h1 { text-align: center; color: #f85149; }
-    #status { text-align: center; font-weight: bold; margin: 20px 0; }
+    .live-dot { display: inline-block; width: 10px; height: 10px; background: #00ff00; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    #status { text-align: center; font-weight: bold; margin: 10px 0; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
     button.filter-btn {
       padding: 12px 20px;
@@ -20,21 +22,21 @@
       font-weight: bold;
     }
     .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
-    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
+    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; position: relative; }
+    .death.new { background: #3a2a1f; border-left: 6px solid #ffeb3b; animation: highlight 8s forwards; }
+    @keyframes highlight { 0% { background: #3a2a1f; } 100% { background: #21262d; } }
     .victim { color: #ff7b72; font-weight: bold; }
     .killer { color: #8b949e; }
-    .mode { font-size: 0.9em; color: #58a6ff; margin-top: 5px; }
   </style>
 </head>
 <body>
-  <h1>☠️ Mortes da Guild - Quinta Serie Ead</h1>
+  <h1>☠️ Mortes da Guild - Quinta Serie Ead <span class="live-dot"></span> <small>LIVE</small></h1>
   
-  <input type="text" id="search" placeholder="Buscar por nome ou data (ex: 15/03/2026)" onkeyup="filterDeaths()">
+  <input type="text" id="search" placeholder="Buscar por nome ou data" onkeyup="filterDeaths()">
   
   <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
-  <div id="mode" class="mode">Modo atual: Apenas mortes por players (nome após " by ")</div>
 
-  <div id="status">Carregando mortes...</div>
+  <div id="status">Atualizando a cada 10 segundos...</div>
   <div id="deathsList"></div>
 
   <script>
@@ -42,6 +44,7 @@
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
     let allDeaths = [];
     let showOnlyPlayerKills = true;
+    let lastDeathsHash = "";
 
     function formatDate(dateStr) {
       if (!dateStr) return "??/??/????";
@@ -49,26 +52,22 @@
       return `${day}/${month}/${year}`;
     }
 
-    // REGRA EXATA QUE VOCÊ PEDIU:
-    // Procura " by " (espaço by espaço) e verifica se o nome depois começa com maiúscula
     function isPlayerKill(reason) {
       if (!reason || !reason.includes(" by ")) return false;
-      
       const afterBy = reason.split(" by ")[1].trim();
-      return /^[A-Z]/.test(afterBy);   // Primeira letra maiúscula = player
+      return /^[A-Z]/.test(afterBy);
     }
 
     async function loadDeaths() {
       const status = document.getElementById('status');
       const list = document.getElementById('deathsList');
-      list.innerHTML = '';
 
       try {
         const guildRes = await fetch(GUILD_API);
         const guildData = await guildRes.json();
         const members = guildData.guild.members || [];
 
-        allDeaths = [];
+        let newDeaths = [];
 
         for (const member of members) {
           const charRes = await fetch(`https://api.tibiadata.com/v4/character/${encodeURIComponent(member.name)}`);
@@ -77,7 +76,7 @@
           if (charData.character && charData.character.deaths) {
             charData.character.deaths.forEach(death => {
               const reason = death.reason || '';
-              allDeaths.push({
+              newDeaths.push({
                 date: death.time.split('T')[0],
                 formattedDate: formatDate(death.time.split('T')[0]),
                 victim: member.name,
@@ -89,12 +88,20 @@
           }
         }
 
-        allDeaths.sort((a, b) => b.date.localeCompare(a.date));
-        renderDeaths(allDeaths);
-        status.textContent = `✅ ${allDeaths.length} mortes carregadas`;
+        newDeaths.sort((a, b) => b.date.localeCompare(a.date));
+
+        // Detecta se houve morte nova
+        const currentHash = JSON.stringify(newDeaths.map(d => d.victim + d.date));
+        if (currentHash !== lastDeathsHash) {
+          allDeaths = newDeaths;
+          lastDeathsHash = currentHash;
+          renderDeaths(allDeaths);
+        }
+
+        status.textContent = `Atualizado há poucos segundos (próxima em 10s)`;
 
       } catch (e) {
-        status.textContent = 'Erro ao carregar: ' + e.message;
+        status.textContent = 'Erro temporário... tentando novamente';
       }
     }
 
@@ -102,12 +109,10 @@
       const container = document.getElementById('deathsList');
       container.innerHTML = '';
 
-      const filtered = showOnlyPlayerKills 
-        ? deaths.filter(d => d.isPlayer) 
-        : deaths;
+      const filtered = showOnlyPlayerKills ? deaths.filter(d => d.isPlayer) : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p>Nenhuma morte encontrada com o filtro atual.</p>';
+        container.innerHTML = '<p>Nenhuma morte encontrada.</p>';
         return;
       }
 
@@ -120,7 +125,6 @@
       Object.keys(grouped).sort().reverse().forEach(rawDate => {
         const formatted = formatDate(rawDate);
         let html = `<div class="day"><h3>${formatted}</h3>`;
-        
         grouped[rawDate].forEach(d => {
           html += `
             <div class="death">
@@ -136,31 +140,24 @@
     function filterDeaths() {
       const term = document.getElementById('search').value.toLowerCase();
       const filtered = allDeaths.filter(d => 
-        d.victim.toLowerCase().includes(term) || 
-        d.formattedDate.includes(term) ||
-        d.reason.toLowerCase().includes(term)
+        d.victim.toLowerCase().includes(term) || d.formattedDate.includes(term)
       );
       renderDeaths(filtered);
     }
 
     function toggleFilter() {
       showOnlyPlayerKills = !showOnlyPlayerKills;
-      const btn = document.getElementById('filterBtn');
-      const modeText = document.getElementById('mode');
-      
-      btn.textContent = showOnlyPlayerKills 
+      document.getElementById('filterBtn').textContent = showOnlyPlayerKills 
         ? "Mostrar apenas mortes por players" 
         : "Mostrar todas as mortes";
-      
-      modeText.textContent = showOnlyPlayerKills 
-        ? "Modo atual: Apenas mortes por players (nome após ' by ')" 
-        : "Modo atual: Todas as mortes";
-      
       renderDeaths(allDeaths);
     }
 
+    // Atualização a cada 10 segundos (o mais rápido seguro)
+    setInterval(loadDeaths, 10000);
+
+    // Primeira carga
     loadDeaths();
-    setInterval(loadDeaths, 300000);
   </script>
 </body>
 </html>
