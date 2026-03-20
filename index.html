@@ -43,29 +43,34 @@
     let allDeaths = [];
     let showOnlyPlayerKills = true;
 
+    // Lista grande de criaturas e bosses (baseada no TibiaWiki)
+    const monsterList = [
+      "dragon", "demon", "behemoth", "hydra", "lich", "minotaur", "orc", "troll", "rat", "spider", 
+      "skeleton", "cyclops", "giant", "vampire", "ghost", "zombie", "boss", "elder dragon", "wyrm", 
+      "ancient scarab", "beast", "wolf", "snake", "crab", "frog", "bear", "lion", "scorpion", 
+      "gargoyle", "golem", "imp", "spectre", "wraith", "undead", "elemental", "slime", "blob"
+    ];
+
     function formatDate(dateStr) {
       if (!dateStr) return "??/??/????";
       const [year, month, day] = dateStr.split('-');
       return `${day}/${month}/${year}`;
     }
 
-    // Função MELHORADA para detectar mortes por players
     function isPlayerKill(reason) {
       if (!reason || !reason.includes("killed by ")) return false;
       
-      const killer = reason.split("killed by ")[1].trim().toLowerCase();
+      let killer = reason.split("killed by ")[1].trim().toLowerCase();
       
-      // Padrões claros de criaturas/monstros
-      const monsterWords = [
-        "a ", "an ", "the ", "dragon", "demon", "beast", "wolf", "snake", "orc", 
-        "troll", "rat", "spider", "skeleton", "cyclops", "giant", "hydra", "lich", 
-        "minotaur", "vampire", "ghost", "zombie", "boss"
-      ];
+      // Remove artigos e palavras comuns
+      killer = killer.replace(/^a |^an |^the /, '');
       
-      if (monsterWords.some(word => killer.includes(word))) return false;
+      // Se for monstro da lista → não é player
+      if (monsterList.some(m => killer.includes(m))) return false;
       
       // Se começa com letra maiúscula e tem nome longo → quase sempre é player
-      return /^[A-Z]/.test(reason.split("killed by ")[1].trim()[0]) && killer.length > 4;
+      const cleanKiller = reason.split("killed by ")[1].trim();
+      return /^[A-Z]/.test(cleanKiller) && cleanKiller.length > 5;
     }
 
     async function loadDeaths() {
@@ -118,7 +123,7 @@
 
       if (filtered.length === 0) {
         container.innerHTML = showOnlyPlayerKills 
-          ? '<p>Nenhuma morte por player encontrada. Tente desativar o filtro.</p>' 
+          ? '<p>Nenhuma morte por player encontrada neste período.</p>' 
           : '<p>Nenhuma morte encontrada.</p>';
         return;
       }
@@ -162,7 +167,7 @@
       
       btn.textContent = showOnlyPlayerKills 
         ? "Mostrar apenas mortes por players" 
-        : "Mostrar todas as mortes (incluindo criaturas)";
+        : "Mostrar todas as mortes";
       
       modeText.textContent = showOnlyPlayerKills 
         ? "Modo atual: Apenas mortes por players" 
