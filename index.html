@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mortes - Quinta Serie Ead (Live)</title>
+  <title>Mortes - Quinta Serie Ead (LIVE)</title>
   <style>
     body { background: #0d1117; color: #c9d1d9; font-family: Arial; margin: 0; padding: 20px; max-width: 900px; margin: auto; }
     h1 { text-align: center; color: #f85149; }
-    .live-dot { display: inline-block; width: 10px; height: 10px; background: #00ff00; border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    .live { color: #00ff00; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } }
+    #lastUpdate { text-align: center; font-size: 0.95em; color: #888; margin-bottom: 10px; }
     #status { text-align: center; font-weight: bold; margin: 10px 0; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
     button.filter-btn {
@@ -22,21 +23,22 @@
       font-weight: bold;
     }
     .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
-    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; position: relative; }
-    .death.new { background: #3a2a1f; border-left: 6px solid #ffeb3b; animation: highlight 8s forwards; }
+    .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
+    .death.new { animation: highlight 6s; background: #3a2a1f; }
     @keyframes highlight { 0% { background: #3a2a1f; } 100% { background: #21262d; } }
     .victim { color: #ff7b72; font-weight: bold; }
     .killer { color: #8b949e; }
   </style>
 </head>
 <body>
-  <h1>☠️ Mortes da Guild - Quinta Serie Ead <span class="live-dot"></span> <small>LIVE</small></h1>
+  <h1>☠️ Mortes da Guild - Quinta Serie Ead <span class="live">● LIVE</span></h1>
   
+  <div id="lastUpdate">Última atualização: agora</div>
   <input type="text" id="search" placeholder="Buscar por nome ou data" onkeyup="filterDeaths()">
   
   <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
 
-  <div id="status">Atualizando a cada 10 segundos...</div>
+  <div id="status">Carregando...</div>
   <div id="deathsList"></div>
 
   <script>
@@ -44,6 +46,7 @@
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
     let allDeaths = [];
     let showOnlyPlayerKills = true;
+    let lastUpdateTime = Date.now();
     let lastDeathsHash = "";
 
     function formatDate(dateStr) {
@@ -59,9 +62,6 @@
     }
 
     async function loadDeaths() {
-      const status = document.getElementById('status');
-      const list = document.getElementById('deathsList');
-
       try {
         const guildRes = await fetch(GUILD_API);
         const guildData = await guildRes.json();
@@ -90,18 +90,28 @@
 
         newDeaths.sort((a, b) => b.date.localeCompare(a.date));
 
-        // Detecta se houve morte nova
         const currentHash = JSON.stringify(newDeaths.map(d => d.victim + d.date));
-        if (currentHash !== lastDeathsHash) {
-          allDeaths = newDeaths;
-          lastDeathsHash = currentHash;
-          renderDeaths(allDeaths);
+
+        // Se houver morte nova → notificação
+        if (currentHash !== lastDeathsHash && lastDeathsHash !== "") {
+          const newOnes = newDeaths.length - allDeaths.length;
+          if (newOnes > 0 && "Notification" in window && Notification.permission === "granted") {
+            new Notification("Nova Morte na Guild!", {
+              body: `${newOnes} nova(s) morte(s) detectada(s)!`,
+              icon: "https://tibia.com/favicon.ico"
+            });
+          }
         }
 
-        status.textContent = `Atualizado há poucos segundos (próxima em 10s)`;
+        allDeaths = newDeaths;
+        lastDeathsHash = currentHash;
+        lastUpdateTime = Date.now();
+
+        renderDeaths(allDeaths);
+        document.getElementById('status').textContent = `✅ ${allDeaths.length} mortes carregadas`;
 
       } catch (e) {
-        status.textContent = 'Erro temporário... tentando novamente';
+        document.getElementById('status').textContent = 'Erro temporário...';
       }
     }
 
@@ -153,8 +163,16 @@
       renderDeaths(allDeaths);
     }
 
-    // Atualização a cada 10 segundos (o mais rápido seguro)
+    function updateCounter() {
+      const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
+      document.getElementById('lastUpdate').textContent = `Última atualização: há ${seconds} segundos`;
+    }
+
+    // Atualização ultra-rápida (10 segundos)
     setInterval(loadDeaths, 10000);
+
+    // Contador ao vivo (atualiza a cada segundo)
+    setInterval(updateCounter, 1000);
 
     // Primeira carga
     loadDeaths();
