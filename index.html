@@ -49,16 +49,23 @@
       return `${day}/${month}/${year}`;
     }
 
+    // Função MELHORADA para detectar mortes por players
     function isPlayerKill(reason) {
       if (!reason || !reason.includes("killed by ")) return false;
+      
       const killer = reason.split("killed by ")[1].trim().toLowerCase();
-      // Ignora monstros (começa com "a ", "an ", "an elder ", etc.)
-      return !killer.startsWith("a ") && 
-             !killer.startsWith("an ") && 
-             !killer.includes("dragon") && 
-             !killer.includes("demon") && 
-             !killer.includes("monster") &&
-             /^[a-z]/.test(killer[0]) === false; // começa com maiúscula = player
+      
+      // Padrões claros de criaturas/monstros
+      const monsterWords = [
+        "a ", "an ", "the ", "dragon", "demon", "beast", "wolf", "snake", "orc", 
+        "troll", "rat", "spider", "skeleton", "cyclops", "giant", "hydra", "lich", 
+        "minotaur", "vampire", "ghost", "zombie", "boss"
+      ];
+      
+      if (monsterWords.some(word => killer.includes(word))) return false;
+      
+      // Se começa com letra maiúscula e tem nome longo → quase sempre é player
+      return /^[A-Z]/.test(reason.split("killed by ")[1].trim()[0]) && killer.length > 4;
     }
 
     async function loadDeaths() {
@@ -110,7 +117,9 @@
         : deaths;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p>Nenhuma morte encontrada com o filtro atual.</p>';
+        container.innerHTML = showOnlyPlayerKills 
+          ? '<p>Nenhuma morte por player encontrada. Tente desativar o filtro.</p>' 
+          : '<p>Nenhuma morte encontrada.</p>';
         return;
       }
 
@@ -153,11 +162,11 @@
       
       btn.textContent = showOnlyPlayerKills 
         ? "Mostrar apenas mortes por players" 
-        : "Mostrar todas as mortes (incluindo monstros)";
+        : "Mostrar todas as mortes (incluindo criaturas)";
       
       modeText.textContent = showOnlyPlayerKills 
         ? "Modo atual: Apenas mortes por players" 
-        : "Modo atual: Todas as mortes (players + criaturas)";
+        : "Modo atual: Todas as mortes";
       
       renderDeaths(allDeaths);
     }
