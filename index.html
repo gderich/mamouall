@@ -9,6 +9,15 @@
     h1 { text-align: center; color: #f85149; }
     #status { text-align: center; font-weight: bold; margin: 20px 0; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #21262d; border: 1px solid #444; border-radius: 6px; color: white; }
+    button.filter-btn {
+      padding: 10px 20px;
+      background: #58a6ff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
     .day { background: #1f2a3a; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 6px solid #f85149; }
     .death { background: #21262d; padding: 12px; margin: 8px 0; border-radius: 6px; }
     .victim { color: #ff7b72; font-weight: bold; }
@@ -17,7 +26,11 @@
 </head>
 <body>
   <h1>☠️ Mortes da Guild - Quinta Serie Ead</h1>
+  
   <input type="text" id="search" placeholder="Buscar por nome ou data (ex: 15/03/2026)" onkeyup="filterDeaths()">
+  
+  <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Mostrar apenas mortes por players</button>
+
   <div id="status">Carregando mortes...</div>
   <div id="deathsList"></div>
 
@@ -25,12 +38,18 @@
     const GUILD_NAME = "Quinta Serie Ead";
     const GUILD_API = `https://api.tibiadata.com/v4/guild/${encodeURIComponent(GUILD_NAME)}`;
     let allDeaths = [];
+    let showOnlyPlayerKills = true; // padrão: só mortes por players
 
-    // Função para converter YYYY-MM-DD para DD/MM/AAAA
     function formatDate(dateStr) {
       if (!dateStr) return "??/??/????";
       const [year, month, day] = dateStr.split('-');
       return `${day}/${month}/${year}`;
+    }
+
+    function isPlayerKill(reason) {
+      if (!reason) return false;
+      const killer = reason.replace("killed by ", "").trim();
+      return /^[A-Z]/.test(killer); // começa com letra maiúscula = provavelmente player
     }
 
     async function loadDeaths() {
@@ -51,18 +70,20 @@
 
           if (charData.character && charData.character.deaths) {
             charData.character.deaths.forEach(death => {
+              const reason = death.reason || '';
               allDeaths.push({
-                date: death.time.split('T')[0],           // data original
-                formattedDate: formatDate(death.time.split('T')[0]), // data formatada
+                date: death.time.split('T')[0],
+                formattedDate: formatDate(death.time.split('T')[0]),
                 victim: member.name,
                 level: death.level,
-                reason: death.reason || 'Desconhecido'
+                reason: reason,
+                isPlayer: isPlayerKill(reason)
               });
             });
           }
         }
 
-        allDeaths.sort((a, b) => b.date.localeCompare(a.date)); // mais recente primeiro
+        allDeaths.sort((a, b) => b.date.localeCompare(a.date));
         renderDeaths(allDeaths);
         status.textContent = `✅ ${allDeaths.length} mortes carregadas`;
 
@@ -75,13 +96,17 @@
       const container = document.getElementById('deathsList');
       container.innerHTML = '';
 
-      if (deaths.length === 0) {
-        container.innerHTML = '<p>Nenhuma morte encontrada.</p>';
+      const filtered = showOnlyPlayerKills 
+        ? deaths.filter(d => d.isPlayer) 
+        : deaths;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<p>Nenhuma morte encontrada com os filtros atuais.</p>';
         return;
       }
 
       const grouped = {};
-      deaths.forEach(d => {
+      filtered.forEach(d => {
         if (!grouped[d.date]) grouped[d.date] = [];
         grouped[d.date].push(d);
       });
@@ -110,6 +135,15 @@
         d.reason.toLowerCase().includes(term)
       );
       renderDeaths(filtered);
+    }
+
+    function toggleFilter() {
+      showOnlyPlayerKills = !showOnlyPlayerKills;
+      const btn = document.getElementById('filterBtn');
+      btn.textContent = showOnlyPlayerKills 
+        ? "Mostrar apenas mortes por players" 
+        : "Mostrar todas as mortes (incluindo monstros)";
+      renderDeaths(allDeaths);
     }
 
     // Primeira carga
